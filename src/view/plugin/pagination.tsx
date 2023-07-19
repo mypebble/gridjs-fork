@@ -5,6 +5,7 @@ import ServerPaginationLimit from '../../pipeline/limit/serverPagination';
 import { useConfig } from '../../hooks/useConfig';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslator } from '../../i18n/language';
+import { TDataArrayRow } from 'src/types';
 
 export interface PaginationConfig {
   limit?: number;
@@ -18,6 +19,9 @@ export interface PaginationConfig {
     url?: (prevUrl: string, page: number, limit: number) => string;
     body?: (prevBody: BodyInit, page: number, limit: number) => BodyInit;
   };
+  forceTotal?: number;
+  overrideData?: (page, start, end) => TDataArrayRow;
+  overrideDataAsync?: (page, start, end) => Promise<TDataArrayRow>;
 }
 
 export function Pagination() {
@@ -31,6 +35,9 @@ export function Pagination() {
     limit = 10,
     page = 0,
     resetPageOnUpdate = true,
+    forceTotal,
+    overrideData,
+    overrideDataAsync,
   } = config.pagination as PaginationConfig;
 
   const processor = useRef<PaginationLimit | ServerPaginationLimit>(null);
@@ -50,17 +57,21 @@ export function Pagination() {
       processor.current = new PaginationLimit({
         limit: limit,
         page: currentPage,
+        overrideData: overrideData,
+        overrideDataAsync: overrideDataAsync,
       });
     }
 
     if (processor.current instanceof ServerPaginationLimit) {
-      config.pipeline.on('afterProcess', (tabular) => setTotal(tabular.length));
+      config.pipeline.on('afterProcess', (tabular) =>
+        setTotal(forceTotal || tabular.length),
+      );
     } else if (processor.current instanceof PaginationLimit) {
       // Pagination (all Limit processors) is the last step in the pipeline
       // and we assume that at this stage, we have the rows that we care about.
       // Let's grab the rows before processing Pagination and set total number of rows
       processor.current.on('beforeProcess', (tabular) =>
-        setTotal(tabular.length),
+        setTotal(forceTotal || tabular.length),
       );
     }
 
@@ -100,6 +111,8 @@ export function Pagination() {
     processor.current.setProps({
       page: page,
     });
+
+    config.eventEmitter.emit('pageChange', page);
   };
 
   const renderPages = () => {
@@ -122,6 +135,7 @@ export function Pagination() {
             <button
               tabIndex={0}
               role="button"
+              type={'button'}
               onClick={() => setPage(0)}
               title={_('pagination.firstPage')}
               aria-label={_('pagination.firstPage')}
@@ -147,6 +161,7 @@ export function Pagination() {
             <button
               tabIndex={0}
               role="button"
+              type={'button'}
               onClick={() => setPage(i)}
               className={classJoin(
                 currentPage === i
@@ -178,6 +193,7 @@ export function Pagination() {
             <button
               tabIndex={0}
               role="button"
+              type={'button'}
               onClick={() => setPage(pages() - 1)}
               title={_('pagination.page', pages())}
               aria-label={_('pagination.page', pages())}
@@ -229,6 +245,7 @@ export function Pagination() {
           <button
             tabIndex={0}
             role="button"
+            type={'button'}
             disabled={currentPage === 0}
             onClick={() => setPage(currentPage - 1)}
             title={_('pagination.previous')}
@@ -248,6 +265,7 @@ export function Pagination() {
           <button
             tabIndex={0}
             role="button"
+            type={'button'}
             disabled={pages() === currentPage + 1 || pages() === 0}
             onClick={() => setPage(currentPage + 1)}
             title={_('pagination.next')}
