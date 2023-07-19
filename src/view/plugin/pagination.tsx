@@ -5,7 +5,7 @@ import ServerPaginationLimit from '../../pipeline/limit/serverPagination';
 import { useConfig } from '../../hooks/useConfig';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslator } from '../../i18n/language';
-import { TDataArrayRow } from 'src/types';
+import { TDataArray } from 'src/types';
 
 export interface PaginationConfig {
   limit?: number;
@@ -20,8 +20,8 @@ export interface PaginationConfig {
     body?: (prevBody: BodyInit, page: number, limit: number) => BodyInit;
   };
   forceTotal?: number;
-  overrideData?: (page, start, end) => TDataArrayRow;
-  overrideDataAsync?: (page, start, end) => Promise<TDataArrayRow>;
+  overrideData?: (page, start, end) => TDataArray;
+  overrideDataAsync?: (page, start, end) => Promise<TDataArray>;
 }
 
 export function Pagination() {

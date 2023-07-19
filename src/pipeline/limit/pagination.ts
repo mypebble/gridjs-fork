@@ -6,13 +6,13 @@ import {
   ProcessorType,
 } from '../processor';
 import Cell from 'src/cell';
-import { TDataArrayRow } from '../../types';
+import { TDataArray } from '../../types';
 
 interface PaginationLimitProps extends PipelineProcessorProps {
   page: number;
   limit: number;
-  overrideData?: (page, start, end) => TDataArrayRow;
-  overrideDataAsync?: (page, start, end) => Promise<TDataArrayRow>;
+  overrideData?: (page, start, end) => TDataArray;
+  overrideDataAsync?: (page, start, end) => Promise<TDataArray>;
 }
 
 class PaginationLimit extends PipelineProcessor<Tabular, PaginationLimitProps> {
@@ -31,11 +31,15 @@ class PaginationLimit extends PipelineProcessor<Tabular, PaginationLimitProps> {
     const start = page * this.props.limit;
     const end = (page + 1) * this.props.limit;
 
-    const overrideToRow = (data: TDataArrayRow) => {
-      let cells: Cell[] = data.map((val) => new Cell(val));
-      const row = new Row(cells);
+    const overrideToRow = (overData: TDataArray) => {
+      console.log(overData);
+      let rows: Row[] = [];
+      for (const rowData of overData) {
+        const rowCells = rowData.map((val) => new Cell(val));
+        rows.push(Row.fromCells(rowCells));
+      }
 
-      return new Tabular(row);
+      return new Tabular(rows);
     };
 
     if (this.props.overrideData) {
