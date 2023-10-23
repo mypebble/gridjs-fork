@@ -5,6 +5,7 @@ import ServerPaginationLimit from '../../pipeline/limit/serverPagination';
 import { useConfig } from '../../hooks/useConfig';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslator } from '../../i18n/language';
+import CustomDataLimit from 'src/pipeline/limit/customData';
 
 export interface PaginationConfig {
   limit?: number;
@@ -18,6 +19,8 @@ export interface PaginationConfig {
     url?: (prevUrl: string, page: number, limit: number) => string;
     body?: (prevBody: BodyInit, page: number, limit: number) => BodyInit;
   };
+  forceTotal?: number;
+  customData?: (page: number, limit: number) => Promise<any[]>;
 }
 
 export function Pagination() {
@@ -31,9 +34,13 @@ export function Pagination() {
     limit = 10,
     page = 0,
     resetPageOnUpdate = true,
+    forceTotal,
+    customData,
   } = config.pagination as PaginationConfig;
 
-  const processor = useRef<PaginationLimit | ServerPaginationLimit>(null);
+  const processor = useRef<
+    PaginationLimit | ServerPaginationLimit | CustomDataLimit
+  >(null);
   const [currentPage, setCurrentPage] = useState(page);
   const [total, setTotal] = useState(0);
   const _ = useTranslator();
@@ -46,6 +53,12 @@ export function Pagination() {
         url: server.url,
         body: server.body,
       });
+    } else if (customData !== undefined && forceTotal) {
+      processor.current = new CustomDataLimit({
+        limit: limit,
+        page: currentPage,
+        data: customData,
+      });
     } else {
       processor.current = new PaginationLimit({
         limit: limit,
@@ -55,12 +68,16 @@ export function Pagination() {
 
     if (processor.current instanceof ServerPaginationLimit) {
       config.pipeline.on('afterProcess', (tabular) => setTotal(tabular.length));
+    } else if (processor.current instanceof CustomDataLimit) {
+      processor.current.on('beforeProcess', (tabular) =>
+        setTotal(forceTotal || tabular.length),
+      );
     } else if (processor.current instanceof PaginationLimit) {
       // Pagination (all Limit processors) is the last step in the pipeline
       // and we assume that at this stage, we have the rows that we care about.
       // Let's grab the rows before processing Pagination and set total number of rows
       processor.current.on('beforeProcess', (tabular) =>
-        setTotal(tabular.length),
+        setTotal(forceTotal || tabular.length),
       );
     }
 
@@ -122,6 +139,7 @@ export function Pagination() {
             <button
               tabIndex={0}
               role="button"
+              type={'button'}
               onClick={() => setPage(0)}
               title={_('pagination.firstPage')}
               aria-label={_('pagination.firstPage')}
@@ -147,6 +165,7 @@ export function Pagination() {
             <button
               tabIndex={0}
               role="button"
+              type={'button'}
               onClick={() => setPage(i)}
               className={classJoin(
                 currentPage === i
@@ -178,6 +197,7 @@ export function Pagination() {
             <button
               tabIndex={0}
               role="button"
+              type={'button'}
               onClick={() => setPage(pages() - 1)}
               title={_('pagination.page', pages())}
               aria-label={_('pagination.page', pages())}
@@ -229,6 +249,7 @@ export function Pagination() {
           <button
             tabIndex={0}
             role="button"
+            type={'button'}
             disabled={currentPage === 0}
             onClick={() => setPage(currentPage - 1)}
             title={_('pagination.previous')}
@@ -248,6 +269,7 @@ export function Pagination() {
           <button
             tabIndex={0}
             role="button"
+            type={'button'}
             disabled={pages() === currentPage + 1 || pages() === 0}
             onClick={() => setPage(currentPage + 1)}
             title={_('pagination.next')}
